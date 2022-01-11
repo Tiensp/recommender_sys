@@ -22,3 +22,14 @@ def getHotelsData():
     df.drop(columns=['thumbnail', 'img', 'detailInfo', 'ratingList', 'utilities'], axis=1, inplace=True)
     #print(df.info())
     return df
+
+def getRatingData():
+    ratings = list(db.collection(u'rating').stream())
+
+    ratings_dict = list(map(lambda x: x.to_dict(), ratings))
+    df = pd.DataFrame(ratings_dict)
+
+    # Drop unuseful feature
+    df.drop(columns=['thumbnail', 'img', 'detailInfo', 'ratingList', 'utilities'], axis=1, inplace=True)
+    #print(df.info())
+    return df

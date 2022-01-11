@@ -108,13 +108,13 @@ class HotelRecommenderSys(object):
 
         # Training data
         Y_data = rate_train.to_numpy()
-        rs = BNCF.KNN_CF(Y_data, k=CONST_K, uuCF=CONST_UUCF)
-        rs.training()
+        # rs = BNCF.KNN_CF(Y_data, k=CONST_K, uuCF=CONST_UUCF)
+        # rs.training()
 
         print ('User-user CF, (Root mean square error) RMSE =', rs.getRMSE(rate_test))
 
-        return rs.get_recommendation(userId)
-        
+        # return rs.get_recommendation(userId)
+
 hotel = HotelRecommenderSys()
 print(hotel.get_content_based('14385'))
 # print(tabulate(df, headers = 'keys', tablefmt = 'psql'))
