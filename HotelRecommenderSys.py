@@ -1,8 +1,15 @@
 import ReadData as fsData
 import numpy as np
 import pandas as pd
+import re
+from tabulate import tabulate
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.model_selection import train_test_split
 
-# Constant
+# ========== Constant ============ #
+
+TEST_PERCENT = 0.2                      # test 20% of data
 hotels_data = fsData.getHotelsData()
 
 C = hotels_data['rating'].mean()        # C is the mean vote across the whole report.
@@ -11,14 +18,26 @@ m = hotels_data['ratingCount'].quantile(0.75)  # m is the minimum votes required
 # Filter out all qualified hotels into a new DataFrame
 q_hotels = hotels_data.copy().loc[hotels_data['ratingCount'] >= m]
 
+# ================================ #
+
 # Function that computes the weighted rating of each hotel
-def weighted_rating(x, m=m, C=C):
-    v = int(x['ratingCount'])
-    R = int(x['rating'])
+def weighted_rating(row, m=m, C=C):
+    v = int(row['ratingCount'])
+    R = int(row['rating'])
     return (v/(v+m) * R) + (m/(m+v) * C)
 
+# Merge column values into one string and remove unuseful characters
+def merge_info(row):
+    baseString = str(row['address']+' '+row['type']+' '+row['detailType']+'  '+row['detailRoom'])
+    # Remove unuseful words
+    unusefulWords = ['·', 'Vietnam', 'Việt Nam', ',', 'Phòng ', 'phòng ', '-']
+    big_regex = re.compile('|'.join(map(re.escape, unusefulWords))) 
+    usefulString = big_regex.sub('', baseString)
+    # Combine number and word into one word
+    result = re.sub('(?<=\d) (?=\w)', '', usefulString)
+    return result
 
-class HotelRecommenderSys(object):
+class HotelRecommenderSys(object): 
     def __init__(self):
         self.dfHotels =  hotels_data
 
@@ -27,26 +46,75 @@ class HotelRecommenderSys(object):
         # Define a new feature 'score' and calculate its value with `weighted_rating()`
         q_hotels['score'] = q_hotels.apply(weighted_rating, axis=1)
 
-        #Sort movies based on score calculated above
+        #Sort hotels based on score calculated above
         result = q_hotels.sort_values('score', ascending=False)
 
         print(result)
         return result
-    
-    # Get recommend hotels based on Content-based
-    def get_content_based(self):
+
+    # Get recommend hotels based on Content-based Filtering
+    def get_content_based(self, hotelId):
         df = self.dfHotels
 
-        # Column 
-        specs = ['brand_id', 'cpu', 'os', 'ram', 'display', 'display_resolution',
-                 'display_screen', 'weight', 'price', 'discount_price']
+        # Filter out all qualified hotels based on city into a new DataFrame
+        row_index_matchId = df.index[df['hotelId'] == hotelId].tolist()
+        df = df.copy().loc[df['cityId'] == df['cityId'].values[row_index_matchId[0]]]
+
+        #Construct a reverse map of indices and hotelIds
+        indices = pd.Series(df.index, index=df['hotelId']).drop_duplicates()
+
+        # Get the index of the hotel that matches the hotelId
+        idx = indices[hotelId]
+
+        # Columns
+        columns = ['address', 'type', 'detailType', 'detailRoom']
 
         # Convert column values to String
-        for column in specs:
+        for column in columns:
             df[column] = df[column].apply(str)
 
-        # áp dụng hàm cho mỗi hàng trong khung dữ liệu để lưu trữ các chuỗi được kết hợp vào một cột mới được gọi là combined_specs
-        df['combined_specs'] = df.apply(combined_specs, axis=1)
+        # Create new feature mergeInfo by apply merge_info method
+        df['mergeInfo'] = df.apply(merge_info, axis=1)
 
+        #Define a TF-IDF Vectorizer Object.
+        tfidf = TfidfVectorizer()
+        #Construct the required TF-IDF matrix by fitting and transforming the data
+        tfidf_matrix = tfidf.fit_transform(df['mergeInfo'])
+
+        # Compute the cosine similarity matrix
+        cosine_sim_matrix = cosine_similarity(tfidf_matrix, tfidf_matrix)
+
+        # Get the pairwsie similarity scores of all hotels with that hotel
+        sim_scores = list(enumerate(cosine_sim_matrix[idx]))
+
+        # Sort the hotels based on the similarity scores
+        sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
+
+        # Get the scores of the 6 most similar hotels
+        sim_scores = sim_scores[1:7]
+
+        # Get the hotel indices
+        hotel_indices = [i[0] for i in sim_scores]
+
+        # Return the top 6 most similar hotels
+        return df['hotelId'].iloc[hotel_indices]
+
+    # Get recommend hotels based on Collaborative Filtering
+    def get_collaborative(self):
+        # prepare data
+        df = self.dfRatings
+        dfRating = df.filter(items=['userId', 'ratingId', 'ratingPoint'])
+        rate_train, rate_test = train_test_split(dfRating, test_size=TEST_PERCENT) 
+
+        # Training data
+        Y_data = rate_train.to_numpy()
+        rs = BNCF.KNN_CF(Y_data, k=CONST_K, uuCF=CONST_UUCF)
+        rs.training()
+
+        print ('User-user CF, (Root mean square error) RMSE =', rs.getRMSE(rate_test))
+
+        return rs.get_recommendation(userId)
+        
 hotel = HotelRecommenderSys()
-print(hotel.get_weighted_rating())
+print(hotel.get_content_based('14385'))
+# print(tabulate(df, headers = 'keys', tablefmt = 'psql'))
