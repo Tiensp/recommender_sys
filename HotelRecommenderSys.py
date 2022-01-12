@@ -6,11 +6,11 @@ from tabulate import tabulate
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.model_selection import train_test_split
+import Collaborative as CF
 
-# ========== Constant ============ #
 
-TEST_PERCENT = 0.2                      # test 20% of data
 hotels_data = fsData.getHotelsData()
+ratings_data = fsData.getFakeRating()
 
 C = hotels_data['rating'].mean()        # C is the mean vote across the whole report.
 m = hotels_data['ratingCount'].quantile(0.75)  # m is the minimum votes required to be listed in the chart.
@@ -37,9 +37,15 @@ def merge_info(row):
     result = re.sub('(?<=\d) (?=\w)', '', usefulString)
     return result
 
+# ========== Constant ============ #
+TEST_PERCENT = 0.2                      # test 20% of data
+K_USER = 100
+UUCF = 1
+
 class HotelRecommenderSys(object): 
     def __init__(self):
         self.dfHotels =  hotels_data
+        self.dfRatings = ratings_data
 
     # Get recommend hotels based on WEIGHTED RATING
     def get_weighted_rating(self):
@@ -100,21 +106,23 @@ class HotelRecommenderSys(object):
         return df['hotelId'].iloc[hotel_indices]
 
     # Get recommend hotels based on Collaborative Filtering
-    def get_collaborative(self):
+    def get_collaborative(self, userId):
         # prepare data
         df = self.dfRatings
-        dfRating = df.filter(items=['userId', 'ratingId', 'ratingPoint'])
+        dfRating = df.filter(items=['userId', 'hotelId', 'ratingPoint'])
         rate_train, rate_test = train_test_split(dfRating, test_size=TEST_PERCENT) 
 
         # Training data
         Y_data = rate_train.to_numpy()
-        # rs = BNCF.KNN_CF(Y_data, k=CONST_K, uuCF=CONST_UUCF)
-        # rs.training()
+        rs = CF.Collaborative(Y_data, k=K_USER, uuCF=1)
+        rs.training()
 
-        print ('User-user CF, (Root mean square error) RMSE =', rs.getRMSE(rate_test))
+        # RMSE on test data
+        print ('RMSE =', rs.getRMSE(rate_test))
 
-        # return rs.get_recommendation(userId)
+        return rs.get_recommendation(userId)
 
 hotel = HotelRecommenderSys()
 print(hotel.get_content_based('14385'))
 # print(tabulate(df, headers = 'keys', tablefmt = 'psql'))
+print(hotel.get_collaborative(1))

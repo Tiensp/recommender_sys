@@ -33,3 +33,7 @@ def getRatingData():
     df.drop(columns=['thumbnail', 'img', 'detailInfo', 'ratingList', 'utilities'], axis=1, inplace=True)
     #print(df.info())
     return df
+
+def getFakeRating():
+    df = pd.read_json('data/ratings.json')
+    return df
