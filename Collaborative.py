@@ -39,13 +39,15 @@ class Collaborative(object):
             self.utilityMatrix[n] = mean
             # Normalize
             self.Ybar_data[ids, 2] = ratings - self.utilityMatrix[n]
-
+            print(type(self.Ybar_data[ids, 2]))
+        
         # create -sparse matrix
         # -> just save values which != 0 and the position
         self.Ybar = sparse.coo_matrix((self.Ybar_data[:, 2],
                                        (self.Ybar_data[:, 1], self.Ybar_data[:, 0])), (self.n_items, self.n_users))
+        # print(self.Ybar)
         self.Ybar = self.Ybar.tocsr()
-
+        
     # Similarity function
     def similarity(self):
         self.S = self.dist_func(self.Ybar.T, self.Ybar.T)

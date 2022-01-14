@@ -10,7 +10,7 @@ import Collaborative as CF
 
 
 hotels_data = fsData.getHotelsData()
-ratings_data = fsData.getFakeRating()
+ratings_data = fsData.getRatingData()
 
 C = hotels_data['rating'].mean()        # C is the mean vote across the whole report.
 m = hotels_data['ratingCount'].quantile(0.75)  # m is the minimum votes required to be listed in the chart.
@@ -55,13 +55,12 @@ class HotelRecommenderSys(object):
         #Sort hotels based on score calculated above
         result = q_hotels.sort_values('score', ascending=False)
 
-        print(result)
-        return result
+        # Get top 6 highest score
+        return result['hotelId'][:7].to_list()
 
     # Get recommend hotels based on Content-based Filtering
     def get_content_based(self, hotelId):
         df = self.dfHotels
-
         # Filter out all qualified hotels based on city into a new DataFrame
         row_index_matchId = df.index[df['hotelId'] == hotelId].tolist()
         df = df.copy().loc[df['cityId'] == df['cityId'].values[row_index_matchId[0]]]
@@ -102,8 +101,10 @@ class HotelRecommenderSys(object):
         # Get the hotel indices
         hotel_indices = [i[0] for i in sim_scores]
 
+        result = df['hotelId'].iloc[hotel_indices]
+
         # Return the top 6 most similar hotels
-        return df['hotelId'].iloc[hotel_indices]
+        return result.to_list()
 
     # Get recommend hotels based on Collaborative Filtering
     def get_collaborative(self, userId):
@@ -122,7 +123,3 @@ class HotelRecommenderSys(object):
 
         return rs.get_recommendation(userId)
 
-hotel = HotelRecommenderSys()
-print(hotel.get_content_based('14385'))
-# print(tabulate(df, headers = 'keys', tablefmt = 'psql'))
-print(hotel.get_collaborative(1))

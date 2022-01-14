@@ -19,7 +19,7 @@ def getHotelsData():
 
     df['ratingCount'] = df['ratingList'].str.len()      # Create new feature Rating Count
     # Drop unuseful feature
-    df.drop(columns=['thumbnail', 'img', 'detailInfo', 'ratingList', 'utilities'], axis=1, inplace=True)
+    df.drop(columns=['thumbnail', 'img', 'detailInfo', 'ratingList', 'utilities', 'userLike'], axis=1, inplace=True)
     #print(df.info())
     return df
 
@@ -27,13 +27,11 @@ def getRatingData():
     ratings = list(db.collection(u'rating').stream())
 
     ratings_dict = list(map(lambda x: x.to_dict(), ratings))
-    df = pd.DataFrame(ratings_dict)
+    df = pd.DataFrame(ratings_dict, columns=['userId', 'hotelId', 'ratingPoint'])
+    df['userId'] = pd.to_numeric(df['userId'])
+    df['hotelId'] = pd.to_numeric(df['hotelId'])
+    df['ratingPoint'] = pd.to_numeric(df['ratingPoint'])
 
-    # Drop unuseful feature
-    df.drop(columns=['thumbnail', 'img', 'detailInfo', 'ratingList', 'utilities'], axis=1, inplace=True)
-    #print(df.info())
     return df
 
-def getFakeRating():
-    df = pd.read_json('data/ratings.json')
-    return df
+
